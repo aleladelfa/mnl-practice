@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multinomial logit in R: practice session</title>
+<style>
+:root{--ink:#1d2433;--muted:#5b6475;--line:#d9dee7;--bg:#f6f7f9;--blue:#1e64c8;--code:#0f1724;--codeink:#e6edf3;--ok:#1a7f37;--err:#b42318}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+header{background:var(--blue);color:#fff;padding:28px 20px}
+header .wrap,main{max-width:900px;margin:0 auto}
+header h1{margin:0 0 6px;font-size:26px}
+header p{margin:0;opacity:.9}
+#status{margin-top:14px;display:inline-block;background:rgba(255,255,255,.15);padding:6px 12px;border-radius:6px;font-size:14px}
+main{padding:20px}
+.q{background:#fff;border-left:4px solid var(--blue);padding:12px 16px;margin:0 0 20px;border-radius:4px}
+.step{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin:0 0 18px}
+.step.edit{border:2px solid #e8a33d}
+.step.edit h2::after{content:"you edit this";font-size:12px;font-weight:600;background:#fdf0dc;color:#8a5a12;padding:2px 8px;border-radius:10px;margin-left:10px;vertical-align:middle}
+h2{font-size:19px;margin:0 0 8px;display:flex;align-items:center}
+.n{display:inline-flex;width:28px;height:28px;border-radius:50%;background:var(--blue);color:#fff;font-size:15px;align-items:center;justify-content:center;margin-right:10px;flex:none}
+textarea{width:100%;font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--code);color:var(--codeink);border:0;border-radius:8px;padding:12px 14px;resize:vertical;tab-size:2}
+.bar{display:flex;align-items:center;gap:12px;margin:10px 0}
+button.run{background:var(--blue);color:#fff;border:0;border-radius:6px;padding:8px 22px;font-size:15px;font-weight:600;cursor:pointer}
+button.run:disabled{background:#9db4d6;cursor:wait}
+.state{font-size:14px;color:var(--muted)}
+.state.ok{color:var(--ok)}.state.err{color:var(--err)}
+pre.out{background:#f1f3f6;border:1px solid var(--line);border-radius:8px;padding:12px 14px;font:13.5px/1.45 ui-monospace,Menlo,Consolas,monospace;overflow-x:auto;margin:0 0 10px;white-space:pre}
+pre.out .e{color:var(--err)}
+.tip{font-size:14.5px;color:var(--muted);background:#f8f9fb;border-radius:6px;padding:8px 12px;margin:6px 0 0}
+.upload{margin:6px 0 12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px}
+code{background:#eef1f5;padding:1px 5px;border-radius:4px}
+footer{max-width:900px;margin:0 auto;padding:10px 20px 40px;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<h1>Multinomial logit in R</h1>
+<p>Ruimtelijke analyse II, practice session 4. R runs inside this page: nothing to install.</p>
+<div id="status">Starting R in your browser…</div>
+<pre id="diag" hidden style="background:#fff;color:#b42318;font-size:12px;padding:8px;border-radius:6px;white-space:pre-wrap"></pre>
+</div></header>
+<main>
+<div class="q"><b>Our question.</b> Which travel mode do older people in Ghent use instead of the car, and which perceptions of their neighbourhood go with that choice?<br>
+<b>How to work.</b> Run the steps in order, from 1 to 9. Read the grey tip under each output. Only step 4 needs your own input.</div>
+<section class="step" id="s1">
+<h2><span class="n">1</span>Load your data</h2>
+<p>Upload the csv file with your component scores from exercise 1 (it holds all the survey variables plus your components). Then press <b>Run</b>. R reads the file and tells you how many people and variables it holds.</p><div class="upload"><input type="file" id="file" accept=".csv,text/csv"><span id="filestatus">No file uploaded.</span></div>
+<textarea spellcheck="false" rows="6"># Read the file you uploaded. read.csv2 expects &quot;;&quot; between columns and &quot;,&quot; as decimal sign.
+data &lt;- read.csv2(&quot;data.csv&quot;, na.strings = c(&quot;#NULL!&quot;, &quot;&quot;, &quot;NA&quot;))
+# How many people (rows) and how many variables (columns)?
+dim(data)
+# Show the first 3 rows of five columns
+head(data[, c(&quot;ID&quot;, &quot;Age&quot;, &quot;Gender&quot;, &quot;Main_travel_mode&quot;, &quot;PT_subscription&quot;)], 3)</textarea>
+<div class="bar"><button class="run" data-i="1" disabled>Run</button><span class="state"></span></div>
+<pre class="out" hidden></pre>
+<p class="tip">If you see <i>cannot open file</i>, you did not upload a file yet. If all columns end up in one column, your file uses a comma between columns: replace <code>read.csv2</code> by <code>read.csv</code>.</p>
+</section>
+<section class="step" id="s2">
+<h2><span class="n">2</span>What do people use most?</h2>
+<p>Our outcome is the main travel mode. It has four answers: walk, bike, public transport (PT) and car. This is why we need a <b>multinomial</b> logit: more than two answers, with no order between them.</p>
+<textarea spellcheck="false" rows="7"># Give the mode codes 1-4 their names (see the dictionary)
+data$mode &lt;- factor(data$Main_travel_mode, levels = 1:4,
+                    labels = c(&quot;Walk&quot;, &quot;Bike&quot;, &quot;PT&quot;, &quot;Car&quot;))
+# Count how many people use each mode
+table(data$mode)
+# The same as percentages, rounded to 1 decimal
+round(100 * prop.table(table(data$mode)), 1)</textarea>
+<div class="bar"><button class="run" data-i="2" disabled>Run</button><span class="state"></span></div>
+<pre class="out" hidden></pre>
+<p class="tip">Look at the percentages. The car is the biggest group. We will compare every other mode with the car.</p>
+</section>
+<section class="step" id="s3">
+<h2><span class="n">3</span>A table you already understand</h2>
+<p>Before any model: do people with a De Lijn pass travel differently? Each row adds up to 100%.</p>
+<textarea spellcheck="false" rows="5"># Give the pass variable readable labels (0 = no pass, 1 = pass)
+data$pass &lt;- factor(data$PT_subscription, levels = c(0, 1),
+                    labels = c(&quot;No pass&quot;, &quot;Pass&quot;))
+# Crosstab: each row adds up to 100%
+round(100 * prop.table(table(data$pass, data$mode), margin = 1), 1)</textarea>
+<div class="bar"><button class="run" data-i="3" disabled>Run</button><span class="state"></span></div>
+<pre class="out" hidden></pre>
+<p class="tip">Without a pass, about 5% mainly use PT. With a pass, about 30%. A multinomial logit tells the same story in one number per mode, while it holds the other variables constant.</p>
+</section>
+<section class="step edit" id="s4">
+<h2><span class="n">4</span>Name your components (the only block you change)</h2>
+<p>In exercise 1 your group made its own components. Write <b>your</b> names on the left and the matching column names of your file on the right. The example uses the components of the example file. Add or delete lines so the list matches your group.</p>
+<textarea spellcheck="false" rows="14"># &gt;&gt;&gt; THE ONLY BLOCK YOU CHANGE &lt;&lt;&lt;
+# Left: the name YOU gave the component in exercise 1.
+# Right: the column name of that component in your file.
+# Add or delete lines so that it matches your own components.
+components &lt;- c(
+  quality_PT        = &quot;RC2&quot;,
+  quality_cycling   = &quot;RC1&quot;,
+  quality_walking   = &quot;RC4&quot;,
+  busy_traffic      = &quot;RC3&quot;,
+  cycling_friendly  = &quot;RC8&quot;,
+  walking_friendly  = &quot;RC6&quot;,
+  feeling_safe      = &quot;RC7&quot;,
+  parking           = &quot;RC5&quot;
+)</textarea>
+<div class="bar"><button class="run" data-i="4" disabled>Run</button><span class="state"></span></div>
+<pre class="out" hidden></pre>
+<p class="tip">Names on the left: no spaces, no accents. Column names on the right: exactly as in your file, between quotes.</p>
+</section>
+<section class="step" id="s5">
+<h2><span class="n">5</span>Prepare the data</h2>
+<p>R copies your components under your names, labels gender, makes the car the reference category, and drops people with a missing answer.</p>
+<textarea spellcheck="false" rows="10"># Copy each component into a column with your own name
+for (nm in names(components)) data[[nm]] &lt;- as.numeric(data[[components[nm]]])
+# Background variables with readable labels
+data$woman &lt;- factor(data$Gender, levels = c(1, 2), labels = c(&quot;Man&quot;, &quot;Woman&quot;))
+# Car is the reference: every other mode is compared with the car
+data$mode &lt;- relevel(data$mode, ref = &quot;Car&quot;)
+# Keep only the columns we use, and drop people with a missing value
+model_data &lt;- na.omit(data[, c(&quot;mode&quot;, names(components), &quot;Age&quot;, &quot;woman&quot;, &quot;pass&quot;)])
+# How many people are left?
+nrow(model_data)</textarea>
+<div class="bar"><button class="run" data-i="5" disabled>Run</button><span class="state"></span></div>
+<pre class="out" hidden></pre>
+<p class="tip">Write down the number of people left. The Ufora test asks for it.</p>
+</section>
+<section class="step" id="s6">
+<h2><span class="n">6</span>Fit the model</h2>
+<p>One line fits the multinomial logit with <code>mnl()</code>, a small function built into this page (in RStudio you would use <code>nnet::multinom()</code>, which gives the same numbers). R estimates three small models at once: walk instead of car, bike instead of car, PT instead of car.</p>
+<textarea spellcheck="false" rows="7"># Build the formula: mode explained by your components + age + gender + PT pass
+f &lt;- reformulate(c(names(components), &quot;Age&quot;, &quot;woman&quot;, &quot;pass&quot;), response = &quot;mode&quot;)
+# Fit the model. mnl() is built into this page; in RStudio you would use nnet::multinom()
+model &lt;- mnl(f, data = model_data)
+# A model with no explanatory variables, needed for the fit statistics
+model0 &lt;- mnl(mode ~ 1, data = model_data)
+cat(&quot;Model fitted on&quot;, nrow(model_data), &quot;people\n&quot;)</textarea>
+<div class="bar"><button class="run" data-i="6" disabled>Run</button><span class="state"></span></div>
+<pre class="out" hidden></pre>
+<p class="tip">Nothing to read yet. If you see an error that an object is not found, run the steps above first, in order.</p>
+</section>
+<section class="step" id="s7">
+<h2><span class="n">7</span>Read the odds ratios</h2>
+<p>Each cell is an <b>odds ratio</b>: the mode in the column compared with the car, for one point more on the variable in the row.<br>Above 1: more likely than the car. Below 1: less likely than the car. Stars: the effect is significant (* p &lt; 0.05, ** p &lt; 0.01, *** p &lt; 0.001). No star: we cannot tell it apart from no effect.</p>
+<textarea spellcheck="false" rows="9"># Odds ratio = exp(coefficient). Above 1: more likely than the car. Below 1: less likely.
+or &lt;- exp(coef(model))
+# p-value from the z-test (coefficient / standard error)
+p &lt;- 2 * pnorm(-abs(coef(model) / summary(model)$standard.errors))
+# Stars: * p &lt; 0.05, ** p &lt; 0.01, *** p &lt; 0.001
+stars &lt;- ifelse(p &lt; 0.001, &quot;***&quot;, ifelse(p &lt; 0.01, &quot;**&quot;, ifelse(p &lt; 0.05, &quot;*&quot;, &quot;&quot;)))
+# One table: rows = variables, columns = mode compared with car
+table_or &lt;- t(matrix(paste0(sprintf(&quot;%.2f&quot;, or), stars), nrow = nrow(or), dimnames = dimnames(or)))
+noquote(table_or[-1, ])</textarea>
+<div class="bar"><button class="run" data-i="7" disabled>Run</button><span class="state"></span></div>
+<pre class="out" hidden></pre>
+<p class="tip">Example: <i>passPass</i> under PT is about 9. People with a pass have about nine times the odds of using PT instead of the car. <b>Odds</b>, not probability: do not write "nine times as likely".</p>
+</section>
+<section class="step" id="s8">
+<h2><span class="n">8</span>Is the model any good?</h2>
+<p>Two numbers. McFadden R<sup>2</sup> says how much better the model is than a model with no variables. The likelihood-ratio test says whether that improvement is real.</p>
+<textarea spellcheck="false" rows="7"># Log-likelihood of the full model and of the empty model
+ll1 &lt;- as.numeric(logLik(model)); ll0 &lt;- as.numeric(logLik(model0))
+# McFadden R2: between 0 and 1. In travel behaviour, 0.1 to 0.2 is common, above 0.2 is good
+cat(&quot;McFadden R2:&quot;, round(1 - ll1 / ll0, 3), &quot;\n&quot;)
+# Likelihood-ratio test: is the model better than the empty model?
+lr &lt;- 2 * (ll1 - ll0); df &lt;- length(coef(model)) - length(coef(model0))
+cat(&quot;LR chi2 =&quot;, round(lr, 1), &quot; df =&quot;, df, &quot; p =&quot;, signif(pchisq(lr, df, lower.tail = FALSE), 3), &quot;\n&quot;)</textarea>
+<div class="bar"><button class="run" data-i="8" disabled>Run</button><span class="state"></span></div>
+<pre class="out" hidden></pre>
+<p class="tip">A McFadden R<sup>2</sup> of 0.1 to 0.2 is normal for travel behaviour: people choose for many reasons that no survey measures. A p-value below 0.05 for the LR test means the variables together help.</p>
+</section>
+<section class="step edit" id="s9">
+<h2><span class="n">9</span>Write the sentence</h2>
+<p>Pick one variable and one mode from the table in step 7. Change the two names in the code and press <b>Run</b>. R writes the sentence. Check it against the table, then write it in your own words in the Ufora test.</p>
+<textarea spellcheck="false" rows="7"># Change the two names, then run: R writes the sentence for you to check
+variable &lt;- &quot;quality_PT&quot;     # a row name from the table in step 7
+compare  &lt;- &quot;PT&quot;             # Walk, Bike or PT
+o &lt;- or[compare, variable]; pv &lt;- p[compare, variable]
+cat(&quot;For&quot;, compare, &quot;instead of car, one point more on&quot;, variable,
+    &quot;multiplies the odds by&quot;, round(o, 2), &quot;(p =&quot;, signif(pv, 2), &quot;).\n&quot;)
+cat(&quot;That is&quot;, ifelse(o &gt; 1, &quot;an increase&quot;, &quot;a decrease&quot;), &quot;of&quot;, round(abs(o - 1) * 100), &quot;% in the odds, not in the probability.\n&quot;)</textarea>
+<div class="bar"><button class="run" data-i="9" disabled>Run</button><span class="state"></span></div>
+<pre class="out" hidden></pre>
+<p class="tip">The template: <i>For [mode] instead of car, one point more on [variable] multiplies the odds by [odds ratio] (p = ...).</i></p>
+</section>
+</main>
+<footer>R runs on your own computer through webR. Your data file does not leave your laptop.</footer>
+<script>
+window.__diag=function(m){var d=document.getElementById("diag"); if(d){d.hidden=false; d.textContent+=m+"\n";}};
+window.addEventListener("error",function(e){__diag("error: "+(e.message||e.type)+" "+(e.filename||"")+(e.target&&e.target.src?" "+e.target.src:""));},true);
+window.addEventListener("unhandledrejection",function(e){__diag("rejection: "+(e.reason&&e.reason.message||e.reason));});
+document.addEventListener("securitypolicyviolation",function(e){__diag("CSP blocked: "+e.violatedDirective+" "+e.blockedURI);});
+if (location.protocol === "file:") { var st = document.getElementById("status"); st.textContent = "This page is opened from a file on your disk, so R cannot start. Open it from a web address (http:// or https://)."; st.style.background = "#b42318"; }
+</script>
+<script type="module">
+import { WebR } from 'https://webr.r-wasm.org/v0.6.1/webr.mjs';
+const HELPER = "mnl <- function(formula, data) {\n  mf <- model.frame(formula, data); y <- model.response(mf); X <- model.matrix(formula, mf)\n  lev <- levels(y); J <- length(lev); K <- ncol(X); Y <- sapply(lev, function(l) as.numeric(y == l))\n  probs <- function(b) { U <- X %*% cbind(0, matrix(b, K, J - 1)); P <- exp(U - apply(U, 1, max)); P / rowSums(P) }\n  nll <- function(b) -sum(Y * log(probs(b)))\n  gr <- function(b) -as.vector(crossprod(X, (Y - probs(b))[, -1, drop = FALSE]))\n  o <- optim(rep(0, K * (J - 1)), nll, gr, method = \"BFGS\", control = list(maxit = 2000, reltol = 1e-12))\n  P <- probs(o$par)[, -1, drop = FALSE]; H <- matrix(0, K * (J - 1), K * (J - 1))\n  for (j in 1:(J - 1)) for (k in 1:(J - 1)) {\n    w <- if (j == k) P[, j] * (1 - P[, j]) else -P[, j] * P[, k]\n    H[(j - 1) * K + 1:K, (k - 1) * K + 1:K] <- crossprod(X, X * w)\n  }\n  dn <- list(lev[-1], colnames(X))\n  structure(list(coefficients = matrix(o$par, J - 1, K, byrow = TRUE, dimnames = dn),\n                 standard.errors = matrix(sqrt(diag(solve(H))), J - 1, K, byrow = TRUE, dimnames = dn),\n                 loglik = -o$value, npar = length(o$par)), class = \"mnl\")\n}\ncoef.mnl <- function(object, ...) object$coefficients\nsummary.mnl <- function(object, ...) object\nlogLik.mnl <- function(object, ...) structure(object$loglik, df = object$npar, class = \"logLik\")\n";
+const status = document.getElementById('status');
+const buttons = [...document.querySelectorAll('button.run')];
+const webR = new WebR();
+const ready = webR.init();
+let shelter;
+async function boot(){
+  try{
+    await ready;
+    await webR.evalRVoid(HELPER);
+    shelter = await new webR.Shelter();
+    status.textContent = 'R is ready. Upload your file, then start with step 1.';
+    buttons.forEach(b => b.disabled = false);
+  }catch(e){ status.textContent = 'R could not start: ' + e.message + '. Reload the page.'; }
+}
+boot();
+document.getElementById('file').addEventListener('change', async ev => {
+  const f = ev.target.files[0]; if(!f) return;
+  const buf = new Uint8Array(await f.arrayBuffer());
+  const fs = document.getElementById('filestatus');
+  fs.textContent = 'File chosen: ' + f.name + '. Waiting for R to start…';
+  const write = async () => { await webR.FS.writeFile('/home/web_user/data.csv', buf); fs.textContent = 'Uploaded: ' + f.name; };
+  try{ await ready; await write(); }catch(e){ fs.textContent = 'Upload failed: ' + e.message; }
+});
+function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+buttons.forEach(btn => btn.addEventListener('click', async () => {
+  const sec = btn.closest('section');
+  const code = sec.querySelector('textarea').value;
+  const out = sec.querySelector('pre.out'), st = sec.querySelector('.state');
+  btn.disabled = true; st.className = 'state'; st.textContent = 'Running…';
+  try{
+    const res = await shelter.captureR(code, {withAutoprint:true, captureStreams:true, captureConditions:false});
+    out.innerHTML = res.output.map(o => o.type === 'stderr' ? '<span class="e">'+esc(o.data)+'</span>' : esc(o.data)).join('\n') || '(no output)';
+    out.hidden = false; st.className = 'state ok'; st.textContent = 'Done';
+    await shelter.purge();
+  }catch(e){
+    let msg = e.message || String(e);
+    if(/not found/.test(msg)) msg += '\n\nHint: run the steps above this one first, in order.';
+    if(/cannot open/.test(msg)) msg += '\n\nHint: upload your csv file in step 1.';
+    out.innerHTML = '<span class="e">Error: '+esc(msg)+'</span>'; out.hidden = false;
+    st.className = 'state err'; st.textContent = 'Error';
+  }
+  btn.disabled = false;
+}));
+</script>
+</body>
+</html>
