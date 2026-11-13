@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Multinomial logit in R: practice session</title>
 <style>
-:root{--ink:#1d2433;--muted:#5b6475;--line:#d9dee7;--bg:#f6f7f9;--blue:#1e64c8;--code:#0f1724;--codeink:#e6edf3;--ok:#1a7f37;--err:#b42318}
+:root{--ink:#1d2433;--muted:#5b6475;--line:#d9dee7;--bg:#f6f7f9;--blue:#123f82;--code:#0f1724;--codeink:#e6edf3;--ok:#1a7f37;--err:#b42318}
 *{box-sizing:border-box}
 body{margin:0;font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg)}
 header{background:var(--blue);color:#fff;padding:28px 20px}
@@ -37,13 +37,13 @@ footer{max-width:900px;margin:0 auto;padding:10px 20px 40px;color:var(--muted);f
 <body>
 <header><div class="wrap">
 <h1>Multinomial logit in R</h1>
-<p>Ruimtelijke analyse II, practice session 4. R runs inside this page: nothing to install.</p>
-<div id="status">Starting R in your browser…</div>
+<p>Ruimtelijke analyse II · Practice session 4</p>
+<div id="status">Loading…</div>
 <pre id="diag" hidden style="background:#fff;color:#b42318;font-size:12px;padding:8px;border-radius:6px;white-space:pre-wrap"></pre>
 </div></header>
 <main>
 <div class="q"><b>Our question.</b> Which travel mode do older people in Ghent use instead of the car, and which perceptions of their neighbourhood go with that choice?<br>
-<b>How to work.</b> Run the steps in order, from 1 to 9. Read the grey tip under each output. Only step 4 needs your own input.</div>
+<b>How to work.</b> Run the steps in order. In step 4 you fill in your own components, in step 9 you pick one result.</div>
 <section class="step" id="s1">
 <h2><span class="n">1</span>Load your data</h2>
 <p>Upload the csv file with your component scores from exercise 1 (it holds all the survey variables plus your components). Then press <b>Run</b>. R reads the file and tells you how many people and variables it holds.</p><div class="upload"><input type="file" id="file" accept=".csv,text/csv"><span id="filestatus">No file uploaded.</span></div>
@@ -180,7 +180,6 @@ cat(&quot;That is&quot;, ifelse(o &gt; 1, &quot;an increase&quot;, &quot;a decre
 <p class="tip">The template: <i>For [mode] instead of car, one point more on [variable] multiplies the odds by [odds ratio] (p = ...).</i></p>
 </section>
 </main>
-<footer>R runs on your own computer through webR. Your data file does not leave your laptop.</footer>
 <script>
 window.__diag=function(m){var d=document.getElementById("diag"); if(d){d.hidden=false; d.textContent+=m+"\n";}};
 window.addEventListener("error",function(e){__diag("error: "+(e.message||e.type)+" "+(e.filename||"")+(e.target&&e.target.src?" "+e.target.src:""));},true);
@@ -201,7 +200,7 @@ async function boot(){
     await ready;
     await webR.evalRVoid(HELPER);
     shelter = await new webR.Shelter();
-    status.textContent = 'R is ready. Upload your file, then start with step 1.';
+    status.textContent = 'Ready';
     buttons.forEach(b => b.disabled = false);
   }catch(e){ status.textContent = 'R could not start: ' + e.message + '. Reload the page.'; }
 }
