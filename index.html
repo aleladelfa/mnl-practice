@@ -43,7 +43,7 @@ footer{max-width:900px;margin:0 auto;padding:10px 20px 40px;color:var(--muted);f
 </div></header>
 <main>
 <div class="q"><b>Our question.</b> Which travel mode do older people in Ghent use instead of the car, and which perceptions of their neighbourhood go with that choice?<br>
-<b>How to work.</b> Run the steps in order. In step 4 you fill in your own components, in step 9 you pick one result.</div>
+<b>How to work.</b> Run the steps in order. In step 4 you fill in your own components, in steps 9 and 10 you pick a result and a person.</div>
 <section class="step" id="s1">
 <h2><span class="n">1</span>Load your data</h2>
 <p>Upload the csv file with your component scores from exercise 1 (it holds all the survey variables plus your components). Then press <b>Run</b>. R reads the file and tells you how many people and variables it holds.</p><div class="upload"><input type="file" id="file" accept=".csv,text/csv"><span id="filestatus">No file uploaded.</span></div>
@@ -114,7 +114,7 @@ data$woman &lt;- factor(data$Gender, levels = c(1, 2), labels = c(&quot;Man&quot
 # Car is the reference: every other mode is compared with the car
 data$mode &lt;- relevel(data$mode, ref = &quot;Car&quot;)
 # Keep only the columns we use, and drop people with a missing value
-model_data &lt;- na.omit(data[, c(&quot;mode&quot;, names(components), &quot;Age&quot;, &quot;woman&quot;, &quot;pass&quot;)])
+model_data &lt;- na.omit(data[, c(&quot;ID&quot;, &quot;mode&quot;, names(components), &quot;Age&quot;, &quot;woman&quot;, &quot;pass&quot;)])
 # How many people are left?
 nrow(model_data)</textarea>
 <div class="bar"><button class="run" data-i="5" disabled>Run</button><span class="state"></span></div>
@@ -154,9 +154,10 @@ noquote(table_or[-1, ])</textarea>
 <section class="step" id="s8">
 <h2><span class="n">8</span>Is the model any good?</h2>
 <p>Two numbers. McFadden R<sup>2</sup> says how much better the model is than a model with no variables. The likelihood-ratio test says whether that improvement is real.</p>
-<textarea spellcheck="false" rows="7"># Log-likelihood of the full model and of the empty model
+<textarea spellcheck="false" rows="8"># Log-likelihood of the full model and of the empty model
 ll1 &lt;- as.numeric(logLik(model)); ll0 &lt;- as.numeric(logLik(model0))
 # McFadden R2: between 0 and 1. In travel behaviour, 0.1 to 0.2 is common, above 0.2 is good
+cat(&quot;Log-likelihood of your model:&quot;, round(ll1, 1), &quot;  (empty model:&quot;, round(ll0, 1), &quot;)\n&quot;)
 cat(&quot;McFadden R2:&quot;, round(1 - ll1 / ll0, 3), &quot;\n&quot;)
 # Likelihood-ratio test: is the model better than the empty model?
 lr &lt;- 2 * (ll1 - ll0); df &lt;- length(coef(model)) - length(coef(model0))
@@ -179,6 +180,27 @@ cat(&quot;That is&quot;, ifelse(o &gt; 1, &quot;an increase&quot;, &quot;a decre
 <pre class="out" hidden></pre>
 <p class="tip">The template: <i>For [mode] instead of car, one point more on [variable] multiplies the odds by [odds ratio] (p = ...).</i></p>
 </section>
+<section class="step edit" id="s10">
+<h2><span class="n">10</span>Predict one person</h2>
+<p>The model gives every person four probabilities, one per mode. Change the ID in the code and press <b>Run</b>. R shows the four probabilities, the mode the model picks, and what this person answered in the survey.</p>
+<textarea spellcheck="false" rows="14"># Change the ID, then run: the model gives this person four probabilities
+id &lt;- 1
+# Find the row of this person in the model data
+row &lt;- which(model_data$ID == id)
+if (length(row) == 0) {
+  cat(&quot;ID&quot;, id, &quot;is not in the model: one of the answers is missing.\n&quot;)
+} else {
+  # The four probabilities in %, they add up to 100
+  print(round(100 * model$fitted[row, ], 1))
+  # The model picks the mode with the highest probability
+  cat(&quot;The model picks:&quot;, colnames(model$fitted)[which.max(model$fitted[row, ])], &quot;\n&quot;)
+  # Compare with what this person answered in the survey
+  cat(&quot;The survey answer:&quot;, as.character(model_data$mode[row]), &quot;\n&quot;)
+}</textarea>
+<div class="bar"><button class="run" data-i="10" disabled>Run</button><span class="state"></span></div>
+<pre class="out" hidden></pre>
+<p class="tip">The model picks the mode with the highest probability. It is often wrong for one person: it only knows the variables in the model. If R says the ID is not in the model, that person has a missing answer.</p>
+</section>
 </main>
 <script>
 window.__diag=function(m){var d=document.getElementById("diag"); if(d){d.hidden=false; d.textContent+=m+"\n";}};
@@ -189,7 +211,7 @@ if (location.protocol === "file:") { var st = document.getElementById("status");
 </script>
 <script type="module">
 import { WebR } from 'https://webr.r-wasm.org/v0.6.1/webr.mjs';
-const HELPER = "mnl <- function(formula, data) {\n  mf <- model.frame(formula, data); y <- model.response(mf); X <- model.matrix(formula, mf)\n  lev <- levels(y); J <- length(lev); K <- ncol(X); Y <- sapply(lev, function(l) as.numeric(y == l))\n  probs <- function(b) { U <- X %*% cbind(0, matrix(b, K, J - 1)); P <- exp(U - apply(U, 1, max)); P / rowSums(P) }\n  nll <- function(b) -sum(Y * log(probs(b)))\n  gr <- function(b) -as.vector(crossprod(X, (Y - probs(b))[, -1, drop = FALSE]))\n  o <- optim(rep(0, K * (J - 1)), nll, gr, method = \"BFGS\", control = list(maxit = 2000, reltol = 1e-12))\n  P <- probs(o$par)[, -1, drop = FALSE]; H <- matrix(0, K * (J - 1), K * (J - 1))\n  for (j in 1:(J - 1)) for (k in 1:(J - 1)) {\n    w <- if (j == k) P[, j] * (1 - P[, j]) else -P[, j] * P[, k]\n    H[(j - 1) * K + 1:K, (k - 1) * K + 1:K] <- crossprod(X, X * w)\n  }\n  dn <- list(lev[-1], colnames(X))\n  structure(list(coefficients = matrix(o$par, J - 1, K, byrow = TRUE, dimnames = dn),\n                 standard.errors = matrix(sqrt(diag(solve(H))), J - 1, K, byrow = TRUE, dimnames = dn),\n                 loglik = -o$value, npar = length(o$par)), class = \"mnl\")\n}\ncoef.mnl <- function(object, ...) object$coefficients\nsummary.mnl <- function(object, ...) object\nlogLik.mnl <- function(object, ...) structure(object$loglik, df = object$npar, class = \"logLik\")\n";
+const HELPER = "mnl <- function(formula, data) {\n  mf <- model.frame(formula, data); y <- model.response(mf); X <- model.matrix(formula, mf)\n  lev <- levels(y); J <- length(lev); K <- ncol(X); Y <- sapply(lev, function(l) as.numeric(y == l))\n  probs <- function(b) { U <- X %*% cbind(0, matrix(b, K, J - 1)); P <- exp(U - apply(U, 1, max)); P / rowSums(P) }\n  nll <- function(b) -sum(Y * log(probs(b)))\n  gr <- function(b) -as.vector(crossprod(X, (Y - probs(b))[, -1, drop = FALSE]))\n  o <- optim(rep(0, K * (J - 1)), nll, gr, method = \"BFGS\", control = list(maxit = 2000, reltol = 1e-12))\n  P <- probs(o$par)[, -1, drop = FALSE]; H <- matrix(0, K * (J - 1), K * (J - 1))\n  for (j in 1:(J - 1)) for (k in 1:(J - 1)) {\n    w <- if (j == k) P[, j] * (1 - P[, j]) else -P[, j] * P[, k]\n    H[(j - 1) * K + 1:K, (k - 1) * K + 1:K] <- crossprod(X, X * w)\n  }\n  dn <- list(lev[-1], colnames(X))\n  Pf <- probs(o$par); colnames(Pf) <- lev\n  structure(list(coefficients = matrix(o$par, J - 1, K, byrow = TRUE, dimnames = dn),\n                 standard.errors = matrix(sqrt(diag(solve(H))), J - 1, K, byrow = TRUE, dimnames = dn),\n                 loglik = -o$value, npar = length(o$par),\n                 fitted = Pf), class = \"mnl\")\n}\ncoef.mnl <- function(object, ...) object$coefficients\nsummary.mnl <- function(object, ...) object\nlogLik.mnl <- function(object, ...) structure(object$loglik, df = object$npar, class = \"logLik\")\n";
 const status = document.getElementById('status');
 const buttons = [...document.querySelectorAll('button.run')];
 const webR = new WebR();
