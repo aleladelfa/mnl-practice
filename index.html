@@ -137,23 +137,26 @@ cat(&quot;Model fitted on&quot;, nrow(model_data), &quot;people\n&quot;)</textar
 </section>
 <section class="step" id="s7">
 <h2><span class="n">7</span>Read the odds ratios</h2>
-<p>Each cell is an <b>odds ratio</b>: the mode in the column compared with the car, for one point more on the variable in the row.<br>Above 1: more likely than the car. Below 1: less likely than the car. Stars: the effect is significant (* p &lt; 0.05, ** p &lt; 0.01, *** p &lt; 0.001). No star: we cannot tell it apart from no effect.</p>
-<textarea spellcheck="false" rows="9"># Odds ratio = exp(coefficient). Above 1: more likely than the car. Below 1: less likely.
+<p>R prints two tables with the same rows and columns. The first gives the <b>odds ratios</b>: the mode in the column compared with the car, for one point more on the variable in the row (for gender and the pass: women compared with men, pass holders compared with people without a pass). Above 1: higher odds of this mode instead of the car. Below 1: lower odds. The second table gives the <b>p-value</b> of each odds ratio. Below 0.05 means significant, and the first table shows it with a star (* p &lt; 0.05, ** p &lt; 0.01, *** p &lt; 0.001).</p>
+<textarea spellcheck="false" rows="12"># Odds ratio = exp(coefficient). Above 1: higher odds of this mode instead of the car. Below 1: lower odds.
 or &lt;- exp(coef(model))
 # p-value from the z-test (coefficient / standard error)
 p &lt;- 2 * pnorm(-abs(coef(model) / summary(model)$standard.errors))
 # Stars: * p &lt; 0.05, ** p &lt; 0.01, *** p &lt; 0.001
 stars &lt;- ifelse(p &lt; 0.001, &quot;***&quot;, ifelse(p &lt; 0.01, &quot;**&quot;, ifelse(p &lt; 0.05, &quot;*&quot;, &quot;&quot;)))
-# One table: rows = variables, columns = mode compared with car
+# Table 1, odds ratios: rows = variables, columns = mode compared with car
 table_or &lt;- t(matrix(paste0(sprintf(&quot;%.2f&quot;, or), stars), nrow = nrow(or), dimnames = dimnames(or)))
-noquote(table_or[-1, ])</textarea>
+cat(&quot;Odds ratios\n&quot;); print(noquote(table_or[-1, ]))
+# Table 2, p-values: the same rows and columns. Below 0.05 = significant
+table_p &lt;- t(matrix(ifelse(p &lt; 0.001, &quot;&lt;0.001&quot;, sprintf(&quot;%.4f&quot;, p)), nrow = nrow(p), dimnames = dimnames(p)))
+cat(&quot;\np-values\n&quot;); print(noquote(table_p[-1, ]))</textarea>
 <div class="bar"><button class="run" data-i="7" disabled>Run</button><span class="state"></span></div>
 <pre class="out" hidden></pre>
-<p class="tip">Example: <i>passPass</i> under PT is about 9. People with a pass have about nine times the odds of using PT instead of the car. <b>Odds</b>, not probability: do not write "nine times as likely".</p>
+<p class="tip">Example: <i>passPass</i> under PT is about 9 (p &lt; 0.001). Pass holders have about nine times the odds of PT instead of the car, compared with people without a pass. <b>Odds</b>, not probability: do not write "nine times as likely". For the test: list the rows with a star in each column, and use step 9 for the sentences.</p>
 </section>
 <section class="step" id="s8">
 <h2><span class="n">8</span>Is the model any good?</h2>
-<p>Two numbers. McFadden R<sup>2</sup> says how much better the model is than a model with no variables. The likelihood-ratio test says whether that improvement is real.</p>
+<p>Three numbers. The <b>log-likelihood</b> says how well the model fits the data: it is always negative, and closer to 0 is better. Compare it with the empty model. <b>McFadden R<sup>2</sup></b> says how much better the model is than the empty model. The <b>likelihood-ratio test</b> says whether that improvement is real.</p>
 <textarea spellcheck="false" rows="8"># Log-likelihood of the full model and of the empty model
 ll1 &lt;- as.numeric(logLik(model)); ll0 &lt;- as.numeric(logLik(model0))
 # McFadden R2: between 0 and 1. In travel behaviour, 0.1 to 0.2 is common, above 0.2 is good
@@ -164,21 +167,42 @@ lr &lt;- 2 * (ll1 - ll0); df &lt;- length(coef(model)) - length(coef(model0))
 cat(&quot;LR chi2 =&quot;, round(lr, 1), &quot; df =&quot;, df, &quot; p =&quot;, signif(pchisq(lr, df, lower.tail = FALSE), 3), &quot;\n&quot;)</textarea>
 <div class="bar"><button class="run" data-i="8" disabled>Run</button><span class="state"></span></div>
 <pre class="out" hidden></pre>
-<p class="tip">A McFadden R<sup>2</sup> of 0.1 to 0.2 is normal for travel behaviour: people choose for many reasons that no survey measures. A p-value below 0.05 for the LR test means the variables together help.</p>
+<p class="tip">A McFadden R<sup>2</sup> of 0.1 to 0.2 is normal for travel behaviour: people choose for many reasons that no survey measures. A p-value below 0.05 for the LR test means the variables together help to explain the choice.</p>
 </section>
 <section class="step edit" id="s9">
 <h2><span class="n">9</span>Write the sentence</h2>
-<p>Pick one variable and one mode from the table in step 7. Change the two names in the code and press <b>Run</b>. R writes the sentence. Check it against the table, then write it in your own words in the Ufora test.</p>
-<textarea spellcheck="false" rows="7"># Change the two names, then run: R writes the sentence for you to check
+<p>Pick one variable and one mode from step 7. Change the two names in the code and press <b>Run</b>. R writes the sentence in English and in Dutch. For a component or age it uses "one point more" ("one year older"); for gender and the pass it compares the two groups.</p>
+<textarea spellcheck="false" rows="28"># Change the two names, then run: R writes the sentence, in English and in Dutch
 variable &lt;- &quot;quality_PT&quot;     # a row name from the table in step 7
 compare  &lt;- &quot;PT&quot;             # Walk, Bike or PT
-o &lt;- or[compare, variable]; pv &lt;- p[compare, variable]
-cat(&quot;For&quot;, compare, &quot;instead of car, one point more on&quot;, variable,
-    &quot;multiplies the odds by&quot;, round(o, 2), &quot;(p =&quot;, signif(pv, 2), &quot;).\n&quot;)
-cat(&quot;That is&quot;, ifelse(o &gt; 1, &quot;an increase&quot;, &quot;a decrease&quot;), &quot;of&quot;, round(abs(o - 1) * 100), &quot;% in the odds, not in the probability.\n&quot;)</textarea>
+if (!variable %in% colnames(or) || !compare %in% rownames(or)) {
+  cat(&quot;Check the spelling: the variable must be a row of the table in step 7, the mode Walk, Bike or PT.\n&quot;)
+} else {
+  o &lt;- round(or[compare, variable], 2); pv &lt;- p[compare, variable]
+  ptxt &lt;- ifelse(pv &lt; 0.001, &quot;p &lt; 0.001&quot;, paste(&quot;p =&quot;, sprintf(&quot;%.4f&quot;, pv)))
+  nl &lt;- c(Walk = &quot;te voet&quot;, Bike = &quot;de fiets&quot;, PT = &quot;het openbaar vervoer&quot;)[compare]
+  if (variable == &quot;womanWoman&quot;) {
+    # A category: women compared with men
+    en &lt;- paste0(&quot;For &quot;, compare, &quot; instead of car, women have &quot;, o, &quot; times the odds of men (&quot;, ptxt, &quot;).&quot;)
+    du &lt;- paste0(&quot;Voor &quot;, nl, &quot; in plaats van de auto hebben vrouwen &quot;, o, &quot; keer de odds van mannen (&quot;, ptxt, &quot;).&quot;)
+  } else if (variable == &quot;passPass&quot;) {
+    # A category: pass holders compared with people without a pass
+    en &lt;- paste0(&quot;For &quot;, compare, &quot; instead of car, pass holders have &quot;, o, &quot; times the odds of people without a pass (&quot;, ptxt, &quot;).&quot;)
+    du &lt;- paste0(&quot;Voor &quot;, nl, &quot; in plaats van de auto hebben mensen met een De Lijn-abonnement &quot;, o, &quot; keer de odds van mensen zonder abonnement (&quot;, ptxt, &quot;).&quot;)
+  } else {
+    # A number: one point (for Age: one year) more
+    unit_en &lt;- ifelse(variable == &quot;Age&quot;, &quot;being one year older&quot;, paste(&quot;one point more on&quot;, variable))
+    unit_du &lt;- ifelse(variable == &quot;Age&quot;, &quot;één jaar ouder zijn&quot;, paste(&quot;één punt meer op&quot;, variable))
+    en &lt;- paste0(&quot;For &quot;, compare, &quot; instead of car, &quot;, unit_en, &quot; multiplies the odds by &quot;, o, &quot; (&quot;, ptxt, &quot;).&quot;)
+    du &lt;- paste0(&quot;Voor &quot;, nl, &quot; in plaats van de auto vermenigvuldigt &quot;, unit_du, &quot; de odds met &quot;, o, &quot; (&quot;, ptxt, &quot;).&quot;)
+  }
+  cat(en, &quot;\n&quot;, du, &quot;\n&quot;, sep = &quot;&quot;)
+  cat(&quot;That is&quot;, ifelse(o &gt; 1, &quot;an increase&quot;, &quot;a decrease&quot;), &quot;of&quot;, round(abs(o - 1) * 100), &quot;% in the odds, not in the probability.\n&quot;)
+  if (pv &gt;= 0.05) cat(&quot;Careful: p is 0.05 or more, so this effect is not significant.\n&quot;)
+}</textarea>
 <div class="bar"><button class="run" data-i="9" disabled>Run</button><span class="state"></span></div>
 <pre class="out" hidden></pre>
-<p class="tip">The template: <i>For [mode] instead of car, one point more on [variable] multiplies the odds by [odds ratio] (p = ...).</i></p>
+<p class="tip">Check the sentence against the tables of step 7, then use the Dutch sentence in the Ufora test. If R says the effect is not significant, do not use it in your discussion.</p>
 </section>
 <section class="step edit" id="s10">
 <h2><span class="n">10</span>Predict one person</h2>
